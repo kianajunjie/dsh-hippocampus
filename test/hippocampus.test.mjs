@@ -73,3 +73,41 @@ test('encode without llm throws a clear error', async () => {
   await assert.rejects(() => hip.encode([{ at: today, user: 'x', reply: 'y' }]), /needs an llm/)
   hip.close()
 })
+
+test('recallDeep expands a paraphrase into a lexical hit', async () => {
+  const hip = await createHippocampus({
+    db: tmpDb(),
+    // 假模型：把「运动之后的肌肉疼」改写成能命中的词
+    llm: async () => '骑车 腿 酸',
+  })
+  hip.addEvent({ day: daysAgo(2), who: 'user', topic: 'cycling', what: '主人骑车二十公里腿酸', detail: '腿酸' })
+  const lexical = hip.recall('运动之后的肌肉疼')
+  assert.equal(lexical.length, 0, 'lexical recall should miss')
+  const deep = await hip.recallDeep('运动之后的肌肉疼')
+  assert.equal(deep.via, 'expanded')
+  assert.ok(deep.items.length >= 1, 'expansion should find the event')
+  hip.close()
+})
+
+test('recallDeep uses an injected embedder when lexical misses', async () => {
+  const hip = await createHippocampus({
+    db: tmpDb(),
+    // 玩具向量：字符直方图，够验证链路
+    embedder: async (text) => {
+      const v = new Array(64).fill(0)
+      for (const ch of String(text)) v[ch.codePointAt(0) % 64] += 1
+      return v
+    },
+  })
+  const id = hip.addEvent({ day: daysAgo(1), who: 'user', topic: 'cycling', what: '主人骑车腿酸' })
+  // 手动写入向量（模拟 encode 时算过）
+  const v = await (async (t) => {
+    const arr = new Array(64).fill(0)
+    for (const ch of String(t)) arr[ch.codePointAt(0) % 64] += 1
+    return arr
+  })('主人骑车腿酸')
+  hip.db.prepare('update events set vec=? where id=?').run(JSON.stringify(v), id)
+  const deep = await hip.recallDeep('腿酸痛')
+  assert.ok(['vector', 'lexical'].includes(deep.via))
+  hip.close()
+})

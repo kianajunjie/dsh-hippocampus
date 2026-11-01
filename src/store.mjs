@@ -17,6 +17,11 @@ export function openStore(dbPath) {
     create index if not exists ev_topic on events(topic);
     create table if not exists edges(a integer, b integer, w real default 1, primary key(a,b));
   `)
+  // 兼容旧库：补列
+  const cols = db.prepare('select name from pragma_table_info(\'events\')').all().map((r) => r.name)
+  if (!cols.includes('vec')) db.exec('alter table events add column vec text default \'\'')
+  if (!cols.includes('pinned')) db.exec('alter table events add column pinned integer default 0')
+  if (!cols.includes('superseded')) db.exec('alter table events add column superseded integer default 0')
   return db
 }
 

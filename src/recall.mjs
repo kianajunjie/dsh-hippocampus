@@ -36,7 +36,8 @@ export function recall({ db, cfg, text, today }) {
   const params = allTerms.flatMap((t) => [`%${t}%`, `%${t}%`])
 
   // 多取一些，再按"命中词数"重排
-  let rows = db.prepare(`select id,day,who,topic,what,detail,strength from events where (${cond}) and strength >= ?
+  let rows = db.prepare(`select id,day,who,topic,what,detail,strength from events
+    where (${cond}) and strength >= ? and superseded = 0
     order by strength desc, day desc limit ?`).all(...params, cfg.recall.minStrength ?? 0.1, cfg.recall.limit * 4)
 
   const score = (r) => {
@@ -73,6 +74,68 @@ export function recall({ db, cfg, text, today }) {
         : (cfg.language === 'en' ? 'barely' : '只记得有这回事')
     return { day: r.day, who: r.who, what: r.what, level, strength: r.strength }
   })
+}
+
+/**
+ * Hybrid recall: lexical first; if it comes back empty and we have an LLM,
+ * expand the query into paraphrases and try again. Optionally use an injected
+ * embedder for semantic similarity.
+ *
+ * @param {object} opts
+ * @param {(text: string) => Promise<number[]>} [opts.embedder]
+ */
+export async function recallHybrid({ db, cfg, text, today, llm, expandQuery, embedder }) {
+  const lexical = recall({ db, cfg, text, today })
+  if (lexical.length) return { items: lexical, via: 'lexical', expansions: [] }
+
+  // 1) 语义向量（如果调用方提供了 embedder）
+  if (embedder) {
+    try {
+      const qv = await embedder(text)
+      const rows = db.prepare('select id,day,who,what,detail,strength,vec from events where strength >= ?').all(cfg.recall.minStrength ?? 0.1)
+      const scored = rows
+        .map((r) => ({ r, s: cosine(qv, JSON.parse(r.vec || '[]')) }))
+        .filter((x) => x.s > 0.2)
+        .sort((a, b) => b.s - a.s)
+        .slice(0, cfg.recall.limit)
+      if (scored.length) {
+        return {
+          items: scored.map(({ r }) => decorate(r, today, cfg)),
+          via: 'vector',
+          expansions: [],
+        }
+      }
+    } catch { /* fall through to expansion */ }
+  }
+
+  // 2) 让模型把它改写成能命中的说法
+  if (llm && expandQuery) {
+    const extra = await expandQuery(llm, cfg, text)
+    for (const term of extra) {
+      const items = recall({ db, cfg, text: term, today })
+      if (items.length) return { items, via: 'expanded', expansions: extra }
+    }
+    return { items: [], via: 'none', expansions: extra }
+  }
+
+  return { items: [], via: 'none', expansions: [] }
+}
+
+function decorate(r, today, cfg) {
+  const age = daysBetween(r.day, today)
+  const level = r.detail && age <= cfg.confidence.clearDays
+    ? (cfg.language === 'en' ? 'clear' : '记得清')
+    : age <= cfg.confidence.vagueDays
+      ? (cfg.language === 'en' ? 'roughly' : '大概记得')
+      : (cfg.language === 'en' ? 'barely' : '只记得有这回事')
+  return { day: r.day, who: r.who, what: r.what, level, strength: r.strength }
+}
+
+function cosine(a, b) {
+  if (!a?.length || !b?.length || a.length !== b.length) return 0
+  let dot = 0, na = 0, nb = 0
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1)
 }
 
 const STOP_CHARS = new Set([...'的了是我你他她它们在和有不这那就都也很还吗呢吧啊嘛很太什么怎么能可以要会去来说对给把被让着过'])

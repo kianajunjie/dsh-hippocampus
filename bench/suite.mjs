@@ -97,12 +97,17 @@ async function scenarioLongGap() {
 }
 
 async function scenarioParaphrase() {
-  const hip = await createHippocampus({ db: path.join(mkdir(), 'm.db') })
+  const hip = await createHippocampus({ db: path.join(mkdir(), 'm.db'), ...(withLLM && apiKey ? { apiKey, language: 'zh' } : {}) })
   hip.addEvent({ day: dayOf(3), who: 'user', topic: 'cycling', what: '主人骑车二十公里腿酸', affect: 0 })
   const same = hip.recall('腿还疼不疼')
   const diff = hip.recall('运动之后的肌肉疼')   // 与原文几乎不共字
+  let deep = null
+  if (withLLM && apiKey) {
+    const r = await hip.recallDeep('运动之后的肌肉疼')
+    deep = { via: r.via, hits: r.items.length, expansions: r.expansions }
+  }
   hip.close()
-  return { same: same.length, diff: diff.length }
+  return { same: same.length, diff: diff.length, deep }
 }
 
 async function scenarioDenseFacts() {
@@ -160,6 +165,11 @@ console.log(`  recall: ${out.longGap.recall.join(' | ')}`)
 
 console.log('\n=== 3) paraphrase (probe shares almost no characters) ===')
 console.log(`  same-wording hits=${out.paraphrase.same} different-wording hits=${out.paraphrase.diff}`)
+if (out.paraphrase.deep) {
+  console.log(`  deep recall: via=${out.paraphrase.deep.via} hits=${out.paraphrase.deep.hits} expansions=[${out.paraphrase.deep.expansions.join(' ')}]`)
+} else {
+  console.log('  deep recall: skipped (needs --llm --api-key)')
+}
 
 console.log('\n=== 4) ablation (60 days, seed 7) ===')
 for (const [k, v] of Object.entries(out.ablation)) {

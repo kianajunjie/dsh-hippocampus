@@ -3,7 +3,8 @@ import { openStore, daysBetween } from './store.mjs'
 import { makeLLM } from './llm.mjs'
 import { encodeTurns } from './encode.mjs'
 import { replay as runReplay } from './replay.mjs'
-import { recall as runRecall, formatRecall, candidates } from './recall.mjs'
+import { recall as runRecall, recallHybrid, formatRecall, candidates } from './recall.mjs'
+import { expandQuery } from './expand.mjs'
 
 /**
  * Create a hippocampus instance.
@@ -46,9 +47,29 @@ export async function createHippocampus(options = {}) {
       return runRecall({ db, cfg, text, today: today() })
     },
 
+    /**
+     * Recall that survives paraphrases: lexical first, then (if an llm/embedder
+     * is available) query expansion or vector similarity.
+     * @returns {Promise<{items: object[], via: 'lexical'|'vector'|'expanded'|'none', expansions: string[]}>}
+     */
+    async recallDeep(text) {
+      return recallHybrid({
+        db, cfg, text, today: today(),
+        llm: options.llm || (cfg.apiKey ? makeLLM(cfg) : null),
+        expandQuery,
+        embedder: options.embedder,
+      })
+    },
+
     /** Recalls and formats as text lines, ready to drop into a prompt. */
     recallText(text) {
       return formatRecall(this.recall(text))
+    },
+
+    /** Async counterpart of recallText that also tries expansion/vectors. */
+    async recallTextDeep(text) {
+      const r = await this.recallDeep(text)
+      return formatRecall(r.items)
     },
 
     stats() {
@@ -67,6 +88,19 @@ export async function createHippocampus(options = {}) {
 
     link(a, b, w = 1) {
       db.prepare('insert or replace into edges(a,b,w) values(?,?,?)').run(a, b, w)
+    },
+
+    /** Pin a memory so it never decays (user said "remember this"). */
+    pin(id, pinned = true) {
+      db.prepare('update events set pinned=? where id=?').run(pinned ? 1 : 0, id)
+      return { id, pinned: !!pinned }
+    },
+
+    /** What superseded / merged lately — for auditing why a memory vanished. */
+    audit() {
+      const superseded = db.prepare('select id,day,who,topic,what from events where superseded=1 order by id desc limit 20').all()
+      const pinned = db.prepare('select id,day,who,what from events where pinned=1').all()
+      return { superseded, pinned }
     },
 
     close() { db.close() },
