@@ -1,0 +1,38 @@
+{
+  "name": "@dsh-community/hippocampus",
+  "version": "0.1.0",
+  "description": "Human-like memory for companion agents: event encoding, emotion-weighted decay, associative recall, and confidence levels.",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./cli": "./cli.mjs"
+  },
+  "bin": {
+    "dsh-hippo": "./cli.mjs"
+  },
+  "files": [
+    "src",
+    "cli.mjs",
+    "README.md",
+    "LICENSE",
+    "examples"
+  ],
+  "scripts": {
+    "test": "node --test test/hippocampus.test.mjs",
+    "demo": "node cli.mjs demo"
+  },
+  "keywords": [
+    "memory",
+    "agent",
+    "companion",
+    "llm",
+    "sqlite",
+    "decay",
+    "recall"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.5"
+  }
+}
