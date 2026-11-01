@@ -1,7 +1,7 @@
 {
   "name": "@dsh-community/hippocampus",
   "version": "0.1.0",
-  "description": "Human-like memory for companion agents: event encoding, emotion-weighted decay, associative recall, and confidence levels.",
+  "description": "给 AI 伴侣的记忆层：事件编码、情绪加权遗忘、联想召回、会承认自己记不清。Human-like memory for companion agents.",
   "type": "module",
   "main": "./src/index.mjs",
   "exports": {
