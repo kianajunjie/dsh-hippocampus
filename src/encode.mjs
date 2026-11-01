@@ -13,23 +13,29 @@ export function buildExtractionPrompt(cfg, max) {
 /** turn: {at, user, reply} */
 export async function encodeTurns({ db, llm, cfg, turns }) {
   if (!turns.length) return { events: 0, ids: [] }
-  const batch = turns.slice(-cfg.encode.batchTurns)
-  const text = batch
-    .map((t) => `[${t.at}] ${cfg.language === 'en' ? 'user' : '主人'}：${t.user}\n${cfg.language === 'en' ? 'agent' : '她'}：${t.reply}`)
-    .join('\n\n')
-  const out = await llm([
-    { role: 'system', content: buildExtractionPrompt(cfg, cfg.encode.maxPerBatch) },
-    { role: 'user', content: text },
-  ], 400)
-  const ids = []
-  for (const line of out.split('\n').map((l) => l.trim()).filter((l) => l.includes('|'))) {
-    const [day, who, topic, what, affect] = line.split('|').map((s) => s.trim())
-    if (!what || !topic) continue
-    const detail = batch.slice(-1)[0]
-      ? `${batch.slice(-1)[0].user} / ${batch.slice(-1)[0].reply}`.slice(0, 160)
-      : ''
-    ids.push(insertEvent(db, { day, who, topic, what, detail, affect: Number(affect) || 0 }))
+  const allIds = []
+  const size = Math.max(1, cfg.encode.batchTurns)
+  // 分批，别只处理最后一批
+  for (let start = 0; start < turns.length; start += size) {
+    const batch = turns.slice(start, start + size)
+    const text = batch
+      .map((t) => `[${t.at}] ${cfg.language === 'en' ? 'user' : '主人'}：${t.user}\n${cfg.language === 'en' ? 'agent' : '她'}：${t.reply}`)
+      .join('\n\n')
+    const out = await llm([
+      { role: 'system', content: buildExtractionPrompt(cfg, cfg.encode.maxPerBatch) },
+      { role: 'user', content: text },
+    ], 500)
+    const ids = []
+    for (const line of out.split('\n').map((l) => l.trim()).filter((l) => l.includes('|'))) {
+      const [day, who, topic, what, affect] = line.split('|').map((s) => s.trim())
+      if (!what || !topic) continue
+      const detail = batch.slice(-1)[0]
+        ? `${batch.slice(-1)[0].user} / ${batch.slice(-1)[0].reply}`.slice(0, 160)
+        : ''
+      ids.push(insertEvent(db, { day, who, topic, what, detail, affect: Number(affect) || 0 }))
+    }
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) link(db, ids[i], ids[j])
+    allIds.push(...ids)
   }
-  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) link(db, ids[i], ids[j])
-  return { events: ids.length, ids }
+  return { events: allIds.length, ids: allIds }
 }

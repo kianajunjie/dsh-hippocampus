@@ -119,7 +119,33 @@ createHippocampus({ llm: async (messages, maxTokens) => '日期|谁|主题|发�
 
 ---
 
-## Storage
+## Benchmarks
+
+Two self-contained benches. The mock one needs no model:
+
+```bash
+node bench/run.mjs --mode mock --days 60        # decay / recall / confidence at scale
+node bench/run.mjs --mode llm  --days 10 --api-key $DEEPSEEK_API_KEY   # extraction quality
+```
+
+Mock (60 simulated days, 18 planted facts, 111 noise events):
+
+```
+recall@3   7d 100%   30d 86%   60d 89%
+emotion retention   neutral 0.16 vs emotional 0.28  → 1.74x
+false recall (unrelated query)  0
+```
+
+LLM (10 days, 20 real-ish turns in Chinese):
+
+```
+extracted events 10 / 10 facts
+recall@3         10 / 10
+```
+
+Caveats: the mock plants events directly (it tests decay and recall, not extraction), and the LLM bench uses short dialogues, so treat these as upper bounds. Phrasing that shares no characters with the stored event will still miss — that is what a vector index would fix, and it is deliberately out of scope for v0.1.
+
+
 
 SQLite（Node 内置 `node:sqlite`，**零依赖**）。
 
