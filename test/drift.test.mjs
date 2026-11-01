@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { createHippocampus } from '../src/index.mjs'
 
 const today = new Date().toLocaleDateString('sv-SE')
@@ -63,4 +64,16 @@ test('pinned memories do not decay', async () => {
   assert.equal(row.pinned, 1)
   assert.equal(row.strength, 1)
   hip.close()
+})
+
+test('CLI keeps flag values out of the remembered text', () => {
+  const db = tmpDb()
+  const cli = path.join(import.meta.dirname, '..', 'cli.mjs')
+  execFileSync(process.execPath, [cli, 'remember', '主人怕黑，留盏灯', '--subject', 'owner', '--pin', '--topic', 'fear', '--db', db], { encoding: 'utf8' })
+  const out = execFileSync(process.execPath, [cli, 'list', '--db', db], { encoding: 'utf8' })
+  assert.ok(out.includes('主人怕黑'), out)
+  assert.ok(!out.includes('--subject'), 'flag names must not leak into text')
+  assert.ok(!/主人怕黑[^(\n]*--/.test(out), 'flag values must not leak into the remembered text')
+  assert.ok(/主人怕黑，留盏灯\s+\(1\.00\)/.test(out), 'text should end right before the strength column')
+  assert.ok(out.includes('📌'), 'pin flag should apply')
 })
