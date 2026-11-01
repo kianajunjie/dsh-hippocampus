@@ -5,11 +5,14 @@ import { createHippocampus } from './src/index.mjs'
 
 const [, , cmd, ...rest] = process.argv
 const flags = {}
+const positional = []
 for (let i = 0; i < rest.length; i++) {
   if (rest[i].startsWith('--')) {
     const k = rest[i].slice(2)
     const v = rest[i + 1] && !rest[i + 1].startsWith('--') ? rest[++i] : true
     flags[k] = v
+  } else {
+    positional.push(rest[i])
   }
 }
 
@@ -48,10 +51,10 @@ if (cmd === 'encode') {
   const r = await hip.replay()
   console.log(JSON.stringify(r))
 } else if (cmd === 'recall') {
-  const text = rest.filter((a) => !a.startsWith('--')).join(' ')
+  const text = positional.join(' ')
   console.log(hip.recallText(text, { subject: flags.subject }) || '(nothing)')
 } else if (cmd === 'remember') {
-  const text = rest.filter((a) => !a.startsWith('--')).join(' ')
+  const text = positional.join(' ')
   const r = hip.remember(text, { subject: flags.subject, topic: flags.topic, pin: !!flags.pin, affect: Number(flags.affect) || 0 })
   console.log(JSON.stringify(r))
 } else if (cmd === 'list') {
