@@ -121,6 +121,9 @@ createHippocampus({ llm: async (messages, maxTokens) => '日期|谁|主题|发�
 
 ## Benchmarks
 
+See [BENCHMARK.md](BENCHMARK.md) for full numbers (90-day simulation, ablations, dense-fact extraction).
+
+
 Two self-contained benches. The mock one needs no model:
 
 ```bash

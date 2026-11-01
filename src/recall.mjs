@@ -36,19 +36,22 @@ export function recall({ db, cfg, text, today }) {
   const params = allTerms.flatMap((t) => [`%${t}%`, `%${t}%`])
 
   // 多取一些，再按"命中词数"重排
-  let rows = db.prepare(`select id,day,who,topic,what,detail,strength from events where ${cond}
-    order by strength desc, day desc limit ?`).all(...params, cfg.recall.limit * 4)
+  let rows = db.prepare(`select id,day,who,topic,what,detail,strength from events where (${cond}) and strength >= ?
+    order by strength desc, day desc limit ?`).all(...params, cfg.recall.minStrength ?? 0.1, cfg.recall.limit * 4)
 
   const score = (r) => {
     const hay = `${r.topic || ''} ${r.what}`.toLowerCase()
-    let n = 0
-    for (const t of terms) if (hay.includes(t.toLowerCase())) n += 2
-    for (const t of singles) if (hay.includes(t)) n += 1
-    return n
+    let strong = 0
+    let weak = 0
+    for (const t of terms) if (hay.includes(t.toLowerCase())) strong++
+    for (const t of singles) if (hay.includes(t)) weak++
+    return { strong, weak, total: strong * 2 + weak }
   }
-  rows = rows.map((r) => ({ ...r, _s: score(r) }))
-    .filter((r) => r._s > 0)
-    .sort((a, b) => b._s - a._s || b.strength - a.strength)
+  const shortQuery = String(text).replace(/[^\p{Script=Han}]/gu, '').length <= 8
+  rows = rows.map((r) => ({ ...r, _m: score(r) }))
+    // 只有弱命中时：短问题允许 1 个，长问题至少要 2 个，避免乱命中
+    .filter((r) => r._m.strong > 0 || r._m.weak >= (shortQuery ? 1 : 2))
+    .sort((a, b) => b._m.total - a._m.total || b.strength - a.strength)
     .slice(0, cfg.recall.limit)
 
   if (rows.length) {

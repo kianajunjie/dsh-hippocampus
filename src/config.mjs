@@ -8,7 +8,7 @@ export const DEFAULTS = {
   language: 'zh',
   decay: { base: 0.95, emotionBoost: 2, floor: 0.05, mergeCap: 5, mergeWindowDays: 7 },
   confidence: { clearDays: 7, vagueDays: 30 },
-  recall: { limit: 3, hop: 2 },
+  recall: { limit: 3, hop: 2, minStrength: 0.1 },
   encode: { maxPerBatch: 3, batchTurns: 12 },
 }
 
