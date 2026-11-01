@@ -25,7 +25,7 @@ const STOPWORDS = new Set(['the', 'and', 'for', 'was', 'were', 'that', 'this', '
   'doing', 'did', 'does', 'about', 'after', 'before', 'still', 'just', 'not', 'but', 'from', 'they'])
 
 
-export function recall({ db, cfg, text, today }) {
+export function recall({ db, cfg, text, today, subject }) {
   const terms = candidates(text)
   if (!terms.length) return []
   // 单元字也当弱线索（"猫" 能命中 "猫生病了"）
@@ -34,11 +34,14 @@ export function recall({ db, cfg, text, today }) {
   const allTerms = [...new Set([...terms, ...singles])]
   const cond = allTerms.map(() => '(what like ? or topic like ?)').join(' or ')
   const params = allTerms.flatMap((t) => [`%${t}%`, `%${t}%`])
+  // 按人隔离：只看这场对话相关的记忆（没标 subject 的算通用）
+  const scope = subject ? ' and (subject = \'\' or subject = ?)' : ''
+  const scopeParams = subject ? [subject] : []
 
   // 多取一些，再按"命中词数"重排
   let rows = db.prepare(`select id,day,who,topic,what,detail,strength from events
-    where (${cond}) and strength >= ? and superseded = 0
-    order by strength desc, day desc limit ?`).all(...params, cfg.recall.minStrength ?? 0.1, cfg.recall.limit * 4)
+    where (${cond})${scope} and strength >= ? and superseded = 0
+    order by strength desc, day desc limit ?`).all(...params, ...scopeParams, cfg.recall.minStrength ?? 0.1, cfg.recall.limit * 4)
 
   const score = (r) => {
     const hay = `${r.topic || ''} ${r.what}`.toLowerCase()
@@ -63,7 +66,7 @@ export function recall({ db, cfg, text, today }) {
       where ed.a in (${ph}) and e.id not in (${ph})
       order by e.strength desc limit ?`).all(...ids, ...ids, cfg.recall.hop)
     rows = rows.concat(extra.map((r) => ({ ...r, _s: 1 })))
-    db.prepare(`update events set last_recall=? where ${cond}`).run(today, ...params)
+    db.prepare(`update events set last_recall=? where (${cond})`).run(today, ...params)
   }
   return rows.slice(0, cfg.recall.limit + cfg.recall.hop).map((r) => {
     const age = daysBetween(r.day, today)
@@ -84,15 +87,17 @@ export function recall({ db, cfg, text, today }) {
  * @param {object} opts
  * @param {(text: string) => Promise<number[]>} [opts.embedder]
  */
-export async function recallHybrid({ db, cfg, text, today, llm, expandQuery, embedder }) {
-  const lexical = recall({ db, cfg, text, today })
+export async function recallHybrid({ db, cfg, text, today, llm, expandQuery, embedder, subject }) {
+  const lexical = recall({ db, cfg, text, today, subject })
   if (lexical.length) return { items: lexical, via: 'lexical', expansions: [] }
 
   // 1) 语义向量（如果调用方提供了 embedder）
   if (embedder) {
     try {
       const qv = await embedder(text)
-      const rows = db.prepare('select id,day,who,what,detail,strength,vec from events where strength >= ?').all(cfg.recall.minStrength ?? 0.1)
+      const rows = db.prepare(`select id,day,who,what,detail,strength,vec from events
+        where strength >= ? and superseded = 0${subject ? " and (subject = '' or subject = ?)" : ''}`)
+        .all(...[cfg.recall.minStrength ?? 0.1, ...(subject ? [subject] : [])])
       const scored = rows
         .map((r) => ({ r, s: cosine(qv, JSON.parse(r.vec || '[]')) }))
         .filter((x) => x.s > 0.2)
@@ -112,7 +117,7 @@ export async function recallHybrid({ db, cfg, text, today, llm, expandQuery, emb
   if (llm && expandQuery) {
     const extra = await expandQuery(llm, cfg, text)
     for (const term of extra) {
-      const items = recall({ db, cfg, text: term, today })
+      const items = recall({ db, cfg, text: term, today, subject })
       if (items.length) return { items, via: 'expanded', expansions: extra }
     }
     return { items: [], via: 'none', expansions: extra }

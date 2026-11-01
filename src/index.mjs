@@ -43,8 +43,8 @@ export async function createHippocampus(options = {}) {
     },
 
     /** Recalls events relevant to a sentence, with confidence labels. */
-    recall(text) {
-      return runRecall({ db, cfg, text, today: today() })
+    recall(text, opts = {}) {
+      return runRecall({ db, cfg, text, today: today(), subject: opts.subject })
     },
 
     /**
@@ -52,9 +52,9 @@ export async function createHippocampus(options = {}) {
      * is available) query expansion or vector similarity.
      * @returns {Promise<{items: object[], via: 'lexical'|'vector'|'expanded'|'none', expansions: string[]}>}
      */
-    async recallDeep(text) {
+    async recallDeep(text, opts = {}) {
       return recallHybrid({
-        db, cfg, text, today: today(),
+        db, cfg, text, today: today(), subject: opts.subject,
         llm: options.llm || (cfg.apiKey ? makeLLM(cfg) : null),
         expandQuery,
         embedder: options.embedder,
@@ -62,8 +62,37 @@ export async function createHippocampus(options = {}) {
     },
 
     /** Recalls and formats as text lines, ready to drop into a prompt. */
-    recallText(text) {
-      return formatRecall(this.recall(text))
+    recallText(text, opts = {}) {
+      return formatRecall(this.recall(text, opts))
+    },
+
+    /**
+     * She decides to remember something. No LLM needed — this is her own note.
+     * @param {string} text
+     * @param {{topic?: string, who?: string, subject?: string, affect?: number, pin?: boolean, day?: string}} [opts]
+     */
+    remember(text, opts = {}) {
+      if (!String(text || '').trim()) throw new Error('remember() needs text')
+      const id = db.prepare(`insert into events(day,who,topic,what,detail,affect,strength,created,subject,pinned)
+        values(?,?,?,?,?,?,?,?,?,?)`).run(
+        opts.day || today(),
+        opts.who || 'agent',
+        opts.topic || 'self',
+        String(text).slice(0, 300),
+        'remembered by agent',
+        opts.affect ?? 0,
+        1,
+        new Date().toISOString(),
+        opts.subject || '',
+        opts.pin ? 1 : 0,
+      ).lastInsertRowid
+      return { id: Number(id) }
+    },
+
+    /** Recent memories, strongest first — for a memory page or a check-up. */
+    list(limit = 30) {
+      return db.prepare(`select id,day,who,topic,what,strength,pinned,superseded,subject from events
+        order by strength desc, day desc limit ?`).all(limit)
     },
 
     /** Async counterpart of recallText that also tries expansion/vectors. */

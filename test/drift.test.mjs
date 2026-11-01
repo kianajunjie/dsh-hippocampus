@@ -31,6 +31,29 @@ test('near-duplicates still merge (not supersede)', async () => {
   hip.close()
 })
 
+test('memories are isolated per subject', async () => {
+  const hip = await createHippocampus({ db: tmpDb() })
+  hip.remember('A 说他喜欢猫', { subject: 'A', topic: 'preference' })
+  hip.remember('B 说他怕狗', { subject: 'B', topic: 'preference' })
+  assert.equal(hip.recall('猫', { subject: 'A' }).length, 1)
+  assert.equal(hip.recall('猫', { subject: 'B' }).length, 0, 'B must not see A memory')
+  assert.equal(hip.recall('怕', { subject: 'B' }).length, 1)
+  // 不指定 subject 时能看到全部（群里通用语境）
+  assert.ok(hip.recall('猫').length >= 1)
+  hip.close()
+})
+
+test('agent can remember and pin on purpose', async () => {
+  const hip = await createHippocampus({ db: tmpDb() })
+  const { id } = hip.remember('主人怕黑，晚上留一盏灯', { pin: true, subject: 'owner', topic: 'fear' })
+  await hip.replay()
+  const row = hip.db.prepare('select strength, pinned from events where id=?').get(id)
+  assert.equal(row.pinned, 1)
+  assert.equal(row.strength, 1)
+  assert.equal(hip.list(5)[0].pinned, 1)
+  hip.close()
+})
+
 test('pinned memories do not decay', async () => {
   const hip = await createHippocampus({ db: tmpDb() })
   const id = hip.addEvent({ day: daysAgo(60), who: 'user', topic: 'rule', what: '主人怕黑，晚上留一盏灯' })

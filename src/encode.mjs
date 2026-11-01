@@ -32,7 +32,11 @@ export async function encodeTurns({ db, llm, cfg, turns }) {
       const detail = batch.slice(-1)[0]
         ? `${batch.slice(-1)[0].user} / ${batch.slice(-1)[0].reply}`.slice(0, 160)
         : ''
-      ids.push(insertEvent(db, { day, who, topic, what, detail, affect: Number(affect) || 0 }))
+      ids.push(insertEvent(db, {
+        day, who, topic, what, detail,
+        affect: Number(affect) || 0,
+        subject: batch.slice(-1)[0].subject || '',   // 这段记忆是关于谁的
+      }))
     }
     for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) link(db, ids[i], ids[j])
     allIds.push(...ids)

@@ -22,13 +22,15 @@ export function openStore(dbPath) {
   if (!cols.includes('vec')) db.exec('alter table events add column vec text default \'\'')
   if (!cols.includes('pinned')) db.exec('alter table events add column pinned integer default 0')
   if (!cols.includes('superseded')) db.exec('alter table events add column superseded integer default 0')
+  if (!cols.includes('subject')) db.exec('alter table events add column subject text default \'\'')
   return db
 }
 
 export function insertEvent(db, e) {
-  const st = db.prepare(`insert into events(day,who,topic,what,detail,affect,strength,created)
-    values(?,?,?,?,?,?,?,?)`)
-  st.run(e.day, e.who, e.topic, e.what, e.detail || '', e.affect || 0, e.strength ?? 1, new Date().toISOString())
+  const st = db.prepare(`insert into events(day,who,topic,what,detail,affect,strength,created,subject,pinned)
+    values(?,?,?,?,?,?,?,?,?,?)`)
+  st.run(e.day, e.who, e.topic, e.what, e.detail || '', e.affect || 0, e.strength ?? 1,
+    new Date().toISOString(), e.subject || '', e.pinned ? 1 : 0)
   return db.prepare('select last_insert_rowid() as id').get().id
 }
 

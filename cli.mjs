@@ -49,7 +49,17 @@ if (cmd === 'encode') {
   console.log(JSON.stringify(r))
 } else if (cmd === 'recall') {
   const text = rest.filter((a) => !a.startsWith('--')).join(' ')
-  console.log(hip.recallText(text) || '(nothing)')
+  console.log(hip.recallText(text, { subject: flags.subject }) || '(nothing)')
+} else if (cmd === 'remember') {
+  const text = rest.filter((a) => !a.startsWith('--')).join(' ')
+  const r = hip.remember(text, { subject: flags.subject, topic: flags.topic, pin: !!flags.pin, affect: Number(flags.affect) || 0 })
+  console.log(JSON.stringify(r))
+} else if (cmd === 'list') {
+  for (const e of hip.list(Number(flags.limit) || 20)) {
+    console.log(`${e.day} [${e.subject || '-'}] ${e.pinned ? '📌' : '  '} ${e.what}  (${e.strength.toFixed(2)})`)
+  }
+} else if (cmd === 'audit') {
+  console.log(JSON.stringify(hip.audit(), null, 2))
 } else if (cmd === 'stats') {
   console.log(JSON.stringify(hip.stats()))
 } else if (cmd === 'demo') {
