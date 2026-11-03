@@ -41,15 +41,15 @@
     "forgetting",
     "recall"
   ],
-  "author": "kianayang",
+  "author": "kianajunjie",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kianayang/dsh-hippocampus.git"
+    "url": "git+https://github.com/kianajunjie/dsh-hippocampus.git"
   },
-  "homepage": "https://github.com/kianayang/dsh-hippocampus#readme",
+  "homepage": "https://github.com/kianajunjie/dsh-hippocampus#readme",
   "bugs": {
-    "url": "https://github.com/kianayang/dsh-hippocampus/issues"
+    "url": "https://github.com/kianajunjie/dsh-hippocampus/issues"
   },
   "dsh": {
     "manifestVersion": 1,
