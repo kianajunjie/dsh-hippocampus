@@ -144,6 +144,26 @@ const recalled = hip.recallText(用户这句话, { subject: who })
 setInterval(() => hip.replay(), 86400000)
 ```
 
+## 接入哪都行
+
+同一个核心，三种接入：
+
+| 方式 | 用在 |
+|---|---|
+| 直接调库 | 自己写机器人 |
+| HTTP 小接口 | 任何语言、任何软件 |
+| DSH 插件 | im / 网页 / 任何 DSH 会话 |
+
+同一个人从三个门进来，记忆是一份——靠 identities 表对齐：
+
+`js
+hip.bindIdentity('qq', '3475932219', '主人')
+hip.bindIdentity('im', 'user-abc', '主人')
+hip.handleTurn({ channel: 'qq', externalId: '3475932219', text, reply })
+`
+
+详见 [docs/integration.md](docs/integration.md)。
+
 **提示词怎么配**：见 [docs/prompt.md](docs/prompt.md)——
 里面是给大肥鱼写的「### 记忆怎么用」那一节，可以直接贴进你的 AGENTS.md。
 

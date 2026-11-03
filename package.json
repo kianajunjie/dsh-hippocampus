@@ -1,28 +1,34 @@
 {
   "name": "dsh-hippocampus",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "给「大肥鱼」这类养成型 QQ 伴侣用的记忆层：事件编码、情绪加权遗忘、联想召回、关系与技能，还会承认自己记不清。Memory layers for a long-running companion bot.",
   "type": "module",
-  "main": "./src/index.mjs",
+  "main": "./index.mjs",
   "exports": {
-    ".": "./src/index.mjs",
+    ".": "./index.mjs",
+    "./core": "./src/index.mjs",
     "./layers": "./src/layers.mjs",
-    "./cli": "./cli.mjs"
+    "./http": "./src/adapters/http.mjs",
+    "./dsh": "./src/adapters/dsh.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
   },
   "bin": {
     "dsh-hippocampus": "./cli.mjs",
     "dsh-hippo": "./cli.mjs"
   },
   "files": [
+    "index.mjs",
     "src",
     "cli.mjs",
+    "cordis.patch.yml",
     "docs",
     "README.md",
     "LICENSE",
     "examples"
   ],
   "scripts": {
-    "test": "node --test test/hippocampus.test.mjs test/drift.test.mjs test/layers.test.mjs",
+    "test": "node --test test/hippocampus.test.mjs test/drift.test.mjs test/layers.test.mjs test/adapters.test.mjs",
     "demo": "node cli.mjs demo"
   },
   "keywords": [
@@ -44,6 +50,12 @@
   "homepage": "https://github.com/kianayang/dsh-hippocampus#readme",
   "bugs": {
     "url": "https://github.com/kianayang/dsh-hippocampus/issues"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   },
   "engines": {
     "node": ">=22.5"

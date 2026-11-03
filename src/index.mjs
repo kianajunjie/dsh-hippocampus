@@ -9,6 +9,8 @@ import {
   ensureLayers, relGet, relShift, relLine, factAdd, factList,
   chapterAdd, chapterLatest, skillAdd, skillsFor, gapAdd, gapList, contextBlock,
 } from './layers.mjs'
+import { ensureIdentities, bindIdentity, resolveIdentity, identitiesOf } from './identity.mjs'
+import { handleTurn } from './turn.mjs'
 
 /**
  * Create a hippocampus instance.
@@ -29,12 +31,18 @@ export async function createHippocampus(options = {}) {
   const cfg = resolveConfig(options)
   const db = openStore(cfg.db)
   ensureLayers(db)
+  ensureIdentities(db)
   const llm = options.llm || (cfg.apiKey ? makeLLM(cfg) : null)
   const today = () => new Date().toLocaleDateString('sv-SE')
 
   return {
     cfg,
     db,
+
+    /** Display label for whoever spoke on a channel (used in stored events). */
+    channelLabel(channel) {
+      return channel === 'default' ? 'user' : String(channel)
+    },
 
     /* ---------- relationship ---------- */
 
@@ -97,6 +105,30 @@ export async function createHippocampus(options = {}) {
     /** Everything above, assembled for a system prompt. */
     context(opts = {}) {
       return contextBlock(db, { ...opts, language: opts.language || cfg.language })
+    },
+
+    /* ---------- channels ---------- */
+
+    /** Point a channel identity (QQ uid, IM id, web session) at a subject. */
+    bindIdentity(channel, externalId, subject) {
+      return bindIdentity(db, channel, externalId, subject)
+    },
+
+    /** Who is this channel id? Unknown ids get their own isolated subject. */
+    resolveIdentity(channel, externalId, fallback) {
+      return resolveIdentity(db, channel, externalId, fallback)
+    },
+
+    identitiesOf(subject) {
+      return identitiesOf(db, subject)
+    },
+
+    /**
+     * One turn from any channel: resolve the speaker, build the prompt block,
+     * recall, and (when a reply is given) record the exchange.
+     */
+    async handleTurn(input) {
+      return handleTurn(this, input)
     },
 
     /** Encode turns into events. turn = { at, user, reply } */
