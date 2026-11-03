@@ -28,6 +28,14 @@ export function apply(ctx, config = {}) {
 
   const ready = (async () => {
     const db = config.db || path.join(process.env.DSH_HOME || path.join(os.homedir(), '.dsh'), 'hippocampus', 'memory.db')
+    const marker = async (line) => {
+      try {
+        const fs = await import('node:fs')
+        fs.mkdirSync(path.dirname(db), { recursive: true })
+        fs.appendFileSync(path.join(path.dirname(db), 'load.log'), `${new Date().toISOString()} ${line}\n`)
+      } catch { /* ignore */ }
+    }
+    await marker('apply fired')
     hip = await createHippocampus({
       db,
       apiKey: config.apiKey || process.env.DEEPSEEK_API_KEY,
@@ -36,6 +44,7 @@ export function apply(ctx, config = {}) {
     })
     try { ctx.provide?.('hippocampus', hip) } catch (error) { log('provide failed', error?.message) }
     wire(ctx, hip, config, log)
+    await marker('wired')
     return hip
   })().catch((error) => log('init failed', error?.message || String(error)))
 
