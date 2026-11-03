@@ -17,13 +17,21 @@ for (let i = 0; i < rest.length; i++) {
 }
 
 function usage() {
-  console.log(`dsh-hippo — human-like memory for companion agents
+  console.log(`dsh-hippocampus — memory for a companion bot (the 大肥鱼 kind)
 
-  dsh-hippo encode --turns <file.json> [--db path]
-  dsh-hippo replay        [--db path]
-  dsh-hippo recall "text" [--db path]
-  dsh-hippo stats         [--db path]
-  dsh-hippo demo          [--db path]
+  dsh-hippocampus encode --turns <file.json> [--db path]
+  dsh-hippocampus replay        [--db path]
+  dsh-hippocampus recall "text" [--subject 主人] [--db path]
+  dsh-hippocampus remember "text" [--subject 主人] [--pin] [--topic fear]
+  dsh-hippocampus context [--subject 主人] ["这轮说的话"]
+  dsh-hippocampus list [n] | audit | stats
+  dsh-hippocampus rel 主人 | rel-shift 主人 intimacy:1 unresolved:1 why:吵架
+  dsh-hippocampus fact-add 主人 住在 杭州 | facts 主人
+  dsh-hippocampus chapter-add 2026-10 2026-11 "开始养她" "吵架、买娃娃"
+  dsh-hippocampus skill-add 剪视频 "剪,视频" "去静音+whisper"
+  dsh-hippocampus gap-add "quokkacore" "群友提过"
+  dsh-hippocampus demo
+  dsh-hippocampus encode --turns turns.json
 
 Options: --db, --api-key, --model, --base-url, --lang zh|en
 
@@ -37,6 +45,11 @@ const config = {
   model: flags.model || undefined,
   baseUrl: flags['base-url'] || undefined,
   language: flags.lang || undefined,
+}
+
+if (!cmd) {
+  usage()
+  process.exit(0)
 }
 
 const hip = await createHippocampus(config)
@@ -61,6 +74,31 @@ if (cmd === 'encode') {
   for (const e of hip.list(Number(flags.limit) || 20)) {
     console.log(`${e.day} [${e.subject || '-'}] ${e.pinned ? '📌' : '  '} ${e.what}  (${e.strength.toFixed(2)})`)
   }
+} else if (cmd === 'context') {
+  console.log(hip.context({ subject: flags.subject || '主人', text: positional.join(' ') }) || '(空)')
+} else if (cmd === 'rel') {
+  const who = positional[0]
+  console.log(who ? hip.relationLine(who) : hip.relationLine('主人'))
+} else if (cmd === 'rel-shift') {
+  const who = positional[0]
+  const d = {}
+  for (const kv of positional.slice(1)) { const [k, v] = kv.split(':'); d[k] = k === 'why' ? v : Number(v) || 0 }
+  console.log(JSON.stringify(hip.relation(who, d)))
+} else if (cmd === 'fact-add') {
+  console.log(JSON.stringify({ id: hip.fact(positional[0], positional[1], positional[2]) }))
+} else if (cmd === 'facts') {
+  console.log(hip.facts(positional[0] || '').join('\n') || '(没有事实)')
+} else if (cmd === 'chapter-add') {
+  console.log(JSON.stringify({ id: hip.chapter(positional[0], positional[1], positional[2], positional.slice(3).join(' ')) }))
+} else if (cmd === 'chapter') {
+  const c = hip.latestChapter()
+  console.log(c ? `${c.period_from}~${c.period_to} ${c.title}：${c.summary}` : '(还没有章节)')
+} else if (cmd === 'skill-add') {
+  console.log(JSON.stringify({ id: hip.skill(positional[0], positional[1], positional.slice(2).join(' ')) }))
+} else if (cmd === 'gap-add') {
+  console.log(JSON.stringify({ id: hip.gap(positional[0], positional.slice(1).join(' ')) }))
+} else if (cmd === 'gaps') {
+  console.log(hip.gaps().map((g) => g.term).join('、') || '(没有缺口)')
 } else if (cmd === 'audit') {
   console.log(JSON.stringify(hip.audit(), null, 2))
 } else if (cmd === 'stats') {

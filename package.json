@@ -1,37 +1,50 @@
 {
-  "name": "@dsh-community/hippocampus",
-  "version": "0.1.0",
-  "description": "给 AI 伴侣的记忆层：事件编码、情绪加权遗忘、联想召回、会承认自己记不清。Human-like memory for companion agents.",
+  "name": "dsh-hippocampus",
+  "version": "0.2.0",
+  "description": "给「大肥鱼」这类养成型 QQ 伴侣用的记忆层：事件编码、情绪加权遗忘、联想召回、关系与技能，还会承认自己记不清。Memory layers for a long-running companion bot.",
   "type": "module",
   "main": "./src/index.mjs",
   "exports": {
     ".": "./src/index.mjs",
+    "./layers": "./src/layers.mjs",
     "./cli": "./cli.mjs"
   },
   "bin": {
+    "dsh-hippocampus": "./cli.mjs",
     "dsh-hippo": "./cli.mjs"
   },
   "files": [
     "src",
     "cli.mjs",
+    "docs",
     "README.md",
     "LICENSE",
     "examples"
   ],
   "scripts": {
-    "test": "node --test test/hippocampus.test.mjs test/drift.test.mjs",
+    "test": "node --test test/hippocampus.test.mjs test/drift.test.mjs test/layers.test.mjs",
     "demo": "node cli.mjs demo"
   },
   "keywords": [
+    "dsh-plugin",
     "memory",
-    "agent",
     "companion",
-    "llm",
+    "qq-bot",
+    "chatbot",
     "sqlite",
-    "decay",
+    "forgetting",
     "recall"
   ],
+  "author": "kianayang",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kianayang/dsh-hippocampus.git"
+  },
+  "homepage": "https://github.com/kianayang/dsh-hippocampus#readme",
+  "bugs": {
+    "url": "https://github.com/kianayang/dsh-hippocampus/issues"
+  },
   "engines": {
     "node": ">=22.5"
   }

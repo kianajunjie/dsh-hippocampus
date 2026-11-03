@@ -5,6 +5,10 @@ import { encodeTurns } from './encode.mjs'
 import { replay as runReplay } from './replay.mjs'
 import { recall as runRecall, recallHybrid, formatRecall, candidates } from './recall.mjs'
 import { expandQuery } from './expand.mjs'
+import {
+  ensureLayers, relGet, relShift, relLine, factAdd, factList,
+  chapterAdd, chapterLatest, skillAdd, skillsFor, gapAdd, gapList, contextBlock,
+} from './layers.mjs'
 
 /**
  * Create a hippocampus instance.
@@ -24,12 +28,76 @@ import { expandQuery } from './expand.mjs'
 export async function createHippocampus(options = {}) {
   const cfg = resolveConfig(options)
   const db = openStore(cfg.db)
+  ensureLayers(db)
   const llm = options.llm || (cfg.apiKey ? makeLLM(cfg) : null)
   const today = () => new Date().toLocaleDateString('sv-SE')
 
   return {
     cfg,
     db,
+
+    /* ---------- relationship ---------- */
+
+    /** Adjust how close / trusting the relationship is with someone. */
+    relationship(subject = 'user') {
+      return relGet(db, subject)
+    },
+
+    /** e.g. relation('user', { intimacy: +0.2, unresolved: +1, why: 'had a fight' }) */
+    relation(subject, delta) {
+      return relShift(db, subject, delta)
+    },
+
+    relationLine(subject, language = cfg.language) {
+      return relLine(db, subject, language)
+    },
+
+    /* ---------- temporal facts ---------- */
+
+    /** A durable fact; changing it closes the previous value automatically. */
+    fact(subject, relation, object, from) {
+      return factAdd(db, subject, relation, object, from)
+    },
+
+    facts(subject) {
+      return factList(db, subject)
+    },
+
+    /* ---------- life chapters ---------- */
+
+    chapter(from, to, title, summary) {
+      return chapterAdd(db, from, to, title, summary)
+    },
+
+    latestChapter() {
+      return chapterLatest(db)
+    },
+
+    /* ---------- procedural memory ---------- */
+
+    skill(name, keywords, steps) {
+      return skillAdd(db, name, keywords, steps)
+    },
+
+    skillsFor(text) {
+      return skillsFor(db, text)
+    },
+
+    /* ---------- metacognition ---------- */
+
+    /** Record something she does not understand, so she can ask next time. */
+    gap(term, note) {
+      return gapAdd(db, term, note)
+    },
+
+    gaps() {
+      return gapList(db)
+    },
+
+    /** Everything above, assembled for a system prompt. */
+    context(opts = {}) {
+      return contextBlock(db, { ...opts, language: opts.language || cfg.language })
+    },
 
     /** Encode turns into events. turn = { at, user, reply } */
     async encode(turns = []) {
