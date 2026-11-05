@@ -96,7 +96,7 @@ curl -s localhost:7717/context -H 'authorization: Bearer secret' \
 **DSH 插件**（im / 网页）
 
 ```bash
-dsh plugin --profile web add github:kianayang/dsh-hippocampus
+dsh plugin --profile web add github:kianajunjie/dsh-hippocampus
 ```
 
 **命令行**

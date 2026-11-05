@@ -101,7 +101,7 @@ curl -s localhost:7717/turn -H 'authorization: Bearer secret' \
 ## 四、方式 C：DSH 插件（im / 网页 / 任何 DSH 会话）
 
 ```bash
-dsh plugin --profile web add github:kianayang/dsh-hippocampus
+dsh plugin --profile web add github:kianajunjie/dsh-hippocampus
 ```
 
 装上之后插件会：
