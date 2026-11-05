@@ -1,6 +1,6 @@
 {
   "name": "dsh-hippocampus",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "给「大肥鱼」这类养成型 QQ 伴侣用的记忆层：事件编码、情绪加权遗忘、联想召回、关系与技能，还会承认自己记不清。Memory layers for a long-running companion bot.",
   "type": "module",
   "main": "./index.mjs",
